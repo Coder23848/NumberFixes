@@ -1,0 +1,5 @@
+A small collection of bugfixes.
+[list]
+    [*]Fixes a visual bug with shortcut pipes when the "show underwater shortcuts" Remix option is enabled.
+    [*]Fixes a few (relatively minor) memory leaks associated with map and camera objects, as well as a larger one caused by opening the Remix menu.
+[/list]
