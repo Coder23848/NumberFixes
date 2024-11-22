@@ -17,30 +17,31 @@ namespace NumberFixes
             On.RainWorldGame.ShutDownProcess += RainWorldGame_ShutDownProcess;
             On.Menu.ModdingMenu.ShutDownProcess += ModdingMenu_ShutDownProcess;
 
-            Application.focusChanged += Application_focusChanged;
+            On.RainWorld.Update += RainWorld_Update;
         }
 
+        // TODO: Texture leak in MoreSlugcats.BlizzardGraphics::TileTexUpdate
+        // The leak happens for the room you end the cycle in. Would expect it to leak more often from the code; perhaps another mod partially fixes it? Modless testing is in order.
+
+        // TODO: OOM from comically bad stowaway placement?
+
         // screen resolution bug
-        private void Application_focusChanged(bool obj)
+        private void RainWorld_Update(On.RainWorld.orig_Update orig, RainWorld self)
         {
-            if (obj)
+            //Debug.Log($"Test 1! Unity screen resolution: ({Screen.currentResolution.width}x{Screen.currentResolution.height}), Unity screen size: ({Screen.width}x{Screen.height}), Game screen resolution: ({self.options?.ScreenSize.x}x{self.options?.ScreenSize.y})");
+            orig(self);
+            if (self.options != null && (
+                    Screen.width != (int)self.options.ScreenSize.x ||
+                    Screen.height != (int)self.options.ScreenSize.y
+                ))
             {
-                FixScreenBug(RWCustom.Custom.rainWorld);
+                Debug.Log("[Number Fixes] Fixing screen resolution bug...");
+                Screen.SetResolution((int)self.options.ScreenSize.x, (int)self.options.ScreenSize.y, false);
+                Screen.fullScreen = self.options.fullScreen;
+                Futile.instance.UpdateScreenWidth((int)self.options.ScreenSize.x);
+                Cursor.visible = !self.options.fullScreen;
             }
-        }
-        private void FixScreenBug(RainWorld rainWorld)
-        {
-            if (rainWorld != null && rainWorld.options != null)
-            {
-                Debug.Log("[Number Fixes] Attempting to fix screen bug...");
-                Screen.SetResolution((int)rainWorld.options.ScreenSize.x, (int)rainWorld.options.ScreenSize.y, false);
-                Screen.fullScreen = rainWorld.options.fullScreen;
-                Futile.instance.UpdateScreenWidth((int)rainWorld.options.ScreenSize.x);
-            }
-            else
-            {
-                Debug.Log("[Number Fixes] Unable to fix screen bug, cannot find screen resolution settings.");
-            }
+            //Debug.Log($"Test 2! Unity screen resolution: ({Screen.currentResolution.width}x{Screen.currentResolution.height}), Unity screen size: ({Screen.width}x{Screen.height}), Game screen resolution: ({self.options?.ScreenSize.x}x{self.options?.ScreenSize.y})");
         }
 
         // map reveal texture memory leak
