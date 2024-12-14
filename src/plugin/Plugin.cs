@@ -1,4 +1,6 @@
 ﻿using BepInEx;
+using Mono.Cecil.Cil;
+using MonoMod.Cil;
 using MoreSlugcats;
 using UnityEngine;
 
@@ -18,12 +20,42 @@ namespace NumberFixes
             On.Menu.ModdingMenu.ShutDownProcess += ModdingMenu_ShutDownProcess;
 
             On.RainWorld.Update += RainWorld_Update;
+
+            IL.Lizard.SwimBehavior += Lizard_SwimBehavior;
         }
 
         // TODO: Texture leak in MoreSlugcats.BlizzardGraphics::TileTexUpdate
         // The leak happens for the room you end the cycle in. Would expect it to leak more often from the code; perhaps another mod partially fixes it? Modless testing is in order.
 
         // TODO: OOM from comically bad stowaway placement?
+
+        // aquatic lizards not pathfinding out of water correctly (also fixed in the M4rblelous Entity Pack, but the two fixes shouldn't interfere with each other)
+        private void Lizard_SwimBehavior(ILContext il)
+        {
+            ILCursor cursor = new(il);
+            if (cursor.TryGotoNext(MoveType.After,
+                x => x.MatchLdarg(0),
+                x => x.MatchCall(nameof(Creature), "get_mainBodyChunk"),
+                x => x.MatchLdfld(nameof(BodyChunk), nameof(BodyChunk.pos)),
+                x => x.MatchLdarg(0),
+                x => x.MatchLdfld(nameof(UpdatableAndDeletable), nameof(UpdatableAndDeletable.room)),
+                x => x.MatchLdarg(0),
+                x => x.MatchCall(nameof(Creature), "get_mainBodyChunk"), 
+                x => x.MatchLdfld(nameof(BodyChunk), nameof(BodyChunk.pos)),
+                x => x.MatchCallvirt(typeof(Room).GetMethod(nameof(Room.MiddleOfTile), new System.Type[] { typeof(Vector2) }))))
+            {
+                static Vector2 Lizard_SwimBehaviorDelegate(Vector2 orig, Lizard self)
+                {
+                    return self.room.MiddleOfTile(self.followingConnection.destinationCoord);
+                }
+                cursor.Emit(OpCodes.Ldarg_0);
+                cursor.EmitDelegate(Lizard_SwimBehaviorDelegate);
+            }
+            else
+            {
+                Logger.LogError("Failed to hook Lizard.SwimBehavior: no match found.");
+            }
+        }
 
         // screen resolution bug
         private void RainWorld_Update(On.RainWorld.orig_Update orig, RainWorld self)
@@ -101,7 +133,7 @@ namespace NumberFixes
             orig(self);
         }
 
-        // shortcut glow effect not displaying with "Show Underwater Shortcuts" enabled
+        // shortcut glow effect not displaying with "Show Underwater Shortcuts" enabled (also fixed in MergeFix, but the two fixes shouldn't interfere with each other)
         private void ShortcutGraphics_GenerateSprites(On.ShortcutGraphics.orig_GenerateSprites orig, ShortcutGraphics self)
         {
             orig(self);
