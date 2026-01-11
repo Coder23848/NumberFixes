@@ -1,7 +1,11 @@
 A small collection of bugfixes.
+Bugs in v1.11.5:
 [list]
-    [*]Fixes a visual bug with shortcut pipes when the "show underwater shortcuts" Remix option is enabled. (also fixed in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2977508597] MergeFix [/url])
-    [*]Fixes a few (relatively minor) memory leaks associated with map and camera objects, as well as a larger one caused by opening the Remix menu.
+    [*]Fixes a visual bug with shortcut pipes when the "show underwater shortcuts" Remix option is enabled.
     [*](hopefully) Fixes an issue that makes the game look pixelated in fullscreen mode under certain circumstances.
+[/list]
+Bugs exclusive to v1.9.15b:
+[list]
+    [*]Fixes a few (relatively minor) memory leaks associated with map and camera objects, as well as a larger one caused by opening the Remix menu.
     [*]Fixes an issue that prevents aquatic lizards from pathfinding out of water under certain circumstances. (also fixed in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3311812030] The M4rblelous Entity Pack [/url])
 [/list]

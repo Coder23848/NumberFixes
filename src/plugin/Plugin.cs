@@ -15,13 +15,13 @@ namespace NumberFixes
         {
             On.ShortcutGraphics.GenerateSprites += ShortcutGraphics_GenerateSprites;
 
-            On.HUD.Map.ClearSprites += Map_ClearSprites;
-            On.RainWorldGame.ShutDownProcess += RainWorldGame_ShutDownProcess;
-            On.Menu.ModdingMenu.ShutDownProcess += ModdingMenu_ShutDownProcess;
+            //On.HUD.Map.ClearSprites += Map_ClearSprites;
+            //On.RainWorldGame.ShutDownProcess += RainWorldGame_ShutDownProcess;
+            //On.Menu.ModdingMenu.ShutDownProcess += ModdingMenu_ShutDownProcess;
 
             On.RainWorld.Update += RainWorld_Update;
 
-            IL.Lizard.SwimBehavior += Lizard_SwimBehavior;
+            //IL.Lizard.SwimBehavior += Lizard_SwimBehavior;
         }
 
         // TODO: Texture leak in MoreSlugcats.BlizzardGraphics::TileTexUpdate
@@ -30,32 +30,33 @@ namespace NumberFixes
         // TODO: OOM from comically bad stowaway placement?
 
         // aquatic lizards not pathfinding out of water correctly (also fixed in the M4rblelous Entity Pack, but the two fixes shouldn't interfere with each other)
-        private void Lizard_SwimBehavior(ILContext il)
-        {
-            ILCursor cursor = new(il);
-            if (cursor.TryGotoNext(MoveType.After,
-                x => x.MatchLdarg(0),
-                x => x.MatchCall(nameof(Creature), "get_mainBodyChunk"),
-                x => x.MatchLdfld(nameof(BodyChunk), nameof(BodyChunk.pos)),
-                x => x.MatchLdarg(0),
-                x => x.MatchLdfld(nameof(UpdatableAndDeletable), nameof(UpdatableAndDeletable.room)),
-                x => x.MatchLdarg(0),
-                x => x.MatchCall(nameof(Creature), "get_mainBodyChunk"), 
-                x => x.MatchLdfld(nameof(BodyChunk), nameof(BodyChunk.pos)),
-                x => x.MatchCallvirt(typeof(Room).GetMethod(nameof(Room.MiddleOfTile), new System.Type[] { typeof(Vector2) }))))
-            {
-                static Vector2 Lizard_SwimBehaviorDelegate(Vector2 orig, Lizard self)
-                {
-                    return self.room.MiddleOfTile(self.followingConnection.destinationCoord);
-                }
-                cursor.Emit(OpCodes.Ldarg_0);
-                cursor.EmitDelegate(Lizard_SwimBehaviorDelegate);
-            }
-            else
-            {
-                Logger.LogError("Failed to hook Lizard.SwimBehavior: no match found.");
-            }
-        }
+        // appears to be fixed as of 1.11.5
+        //private void Lizard_SwimBehavior(ILContext il)
+        //{
+        //    ILCursor cursor = new(il);
+        //    if (cursor.TryGotoNext(MoveType.After,
+        //        x => x.MatchLdarg(0),
+        //        x => x.MatchCall(nameof(Creature), "get_mainBodyChunk"),
+        //        x => x.MatchLdfld(nameof(BodyChunk), nameof(BodyChunk.pos)),
+        //        x => x.MatchLdarg(0),
+        //        x => x.MatchLdfld(nameof(UpdatableAndDeletable), nameof(UpdatableAndDeletable.room)),
+        //        x => x.MatchLdarg(0),
+        //        x => x.MatchCall(nameof(Creature), "get_mainBodyChunk"), 
+        //        x => x.MatchLdfld(nameof(BodyChunk), nameof(BodyChunk.pos)),
+        //        x => x.MatchCallvirt(typeof(Room).GetMethod(nameof(Room.MiddleOfTile), new System.Type[] { typeof(Vector2) }))))
+        //    {
+        //        static Vector2 Lizard_SwimBehaviorDelegate(Vector2 orig, Lizard self)
+        //        {
+        //            return self.room.MiddleOfTile(self.followingConnection.destinationCoord);
+        //        }
+        //        cursor.Emit(OpCodes.Ldarg_0);
+        //        cursor.EmitDelegate(Lizard_SwimBehaviorDelegate);
+        //    }
+        //    else
+        //    {
+        //        Logger.LogError("Failed to hook Lizard.SwimBehavior: no match found.");
+        //    }
+        //}
 
         // screen resolution bug
         private void RainWorld_Update(On.RainWorld.orig_Update orig, RainWorld self)
@@ -77,61 +78,65 @@ namespace NumberFixes
         }
 
         // map reveal texture memory leak
-        private void Map_ClearSprites(On.HUD.Map.orig_ClearSprites orig, HUD.Map self)
-        {
-            orig(self);
-            Debug.Log("[Number Fixes] Clearing map reveal texture...");
-            self.DestroyTextures();
-        }
+        // appears to be fixed as of 1.11.5
+        //private void Map_ClearSprites(On.HUD.Map.orig_ClearSprites orig, HUD.Map self)
+        //{
+        //    orig(self);
+        //    Debug.Log("[Number Fixes] Clearing map reveal texture...");
+        //    self.DestroyTextures();
+        //}
+
         // RoomCamera textures memory leak
-        private void RainWorldGame_ShutDownProcess(On.RainWorldGame.orig_ShutDownProcess orig, RainWorldGame self)
-        {
-            orig(self);
-            Debug.Log("[Number Fixes] Clearing leakable camera textures...");
-            foreach (RoomCamera i in self.cameras)
-            {
-                if (i.paletteTexture != null)
-                {
-                    Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.paletteTexture));
-                    UnityEngine.Object.Destroy(i.paletteTexture);
-                    i.paletteTexture = null;
-                }
-                if (i.snowLightTex != null)
-                {
-                    Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.snowLightTex));
-                    UnityEngine.Object.Destroy(i.snowLightTex);
-                    i.snowLightTex = null;
-                }
-                if (i.ghostFadeTex != null)
-                {
-                    Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.ghostFadeTex));
-                    UnityEngine.Object.Destroy(i.ghostFadeTex);
-                    i.ghostFadeTex = null;
-                }
-                if (i.fadeTexA != null)
-                {
-                    Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.fadeTexA));
-                    UnityEngine.Object.Destroy(i.fadeTexA);
-                    i.fadeTexA = null;
-                }
-                if (i.fadeTexB != null)
-                {
-                    Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.fadeTexB));
-                    UnityEngine.Object.Destroy(i.fadeTexB);
-                    i.fadeTexB = null;
-                }
-            }
-        }
+        // appears to be fixed as of 1.11.5
+        //private void RainWorldGame_ShutDownProcess(On.RainWorldGame.orig_ShutDownProcess orig, RainWorldGame self)
+        //{
+        //    orig(self);
+        //    Debug.Log("[Number Fixes] Clearing leakable camera textures...");
+        //    foreach (RoomCamera i in self.cameras)
+        //    {
+        //        if (i.paletteTexture != null)
+        //        {
+        //            Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.paletteTexture));
+        //            UnityEngine.Object.Destroy(i.paletteTexture);
+        //            i.paletteTexture = null;
+        //        }
+        //        if (i.snowLightTex != null)
+        //        {
+        //            Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.snowLightTex));
+        //            UnityEngine.Object.Destroy(i.snowLightTex);
+        //            i.snowLightTex = null;
+        //        }
+        //        if (i.ghostFadeTex != null)
+        //        {
+        //            Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.ghostFadeTex));
+        //            UnityEngine.Object.Destroy(i.ghostFadeTex);
+        //            i.ghostFadeTex = null;
+        //        }
+        //        if (i.fadeTexA != null)
+        //        {
+        //            Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.fadeTexA));
+        //            UnityEngine.Object.Destroy(i.fadeTexA);
+        //            i.fadeTexA = null;
+        //        }
+        //        if (i.fadeTexB != null)
+        //        {
+        //            Debug.Log("[Number Fixes] Destroying " + nameof(RoomCamera.fadeTexB));
+        //            UnityEngine.Object.Destroy(i.fadeTexB);
+        //            i.fadeTexB = null;
+        //        }
+        //    }
+        //}
         // Remix thumbnails memory leak
-        private void ModdingMenu_ShutDownProcess(On.Menu.ModdingMenu.orig_ShutDownProcess orig, Menu.ModdingMenu self)
-        {
-            Debug.Log("[Number Fixes] Clearing leakable mod thumbnails...");
-            foreach (Menu.Remix.MenuModList.ModButton i in Menu.Remix.ConfigContainer.menuTab.modList.modButtons)
-            {
-                i._thumbnail?.Destroy();
-            }
-            orig(self);
-        }
+        // Appears to be fixed as of 1.11.5, probably?
+        //private void ModdingMenu_ShutDownProcess(On.Menu.ModdingMenu.orig_ShutDownProcess orig, Menu.ModdingMenu self)
+        //{
+        //    Debug.Log("[Number Fixes] Clearing leakable mod thumbnails...");
+        //    foreach (Menu.Remix.MenuModList.ModButton i in Menu.Remix.ConfigContainer.menuTab.modList.modButtons)
+        //    {
+        //        i._thumbnail?.Destroy();
+        //    }
+        //    orig(self);
+        //}
 
         // shortcut glow effect not displaying with "Show Underwater Shortcuts" enabled (also fixed in MergeFix, but the two fixes shouldn't interfere with each other)
         private void ShortcutGraphics_GenerateSprites(On.ShortcutGraphics.orig_GenerateSprites orig, ShortcutGraphics self)
