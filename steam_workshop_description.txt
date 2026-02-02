@@ -1,8 +1,9 @@
 A small collection of bugfixes.
-Bugs in v1.11.5:
+Bugs in v1.11.6:
 [list]
     [*]Fixes a visual bug with shortcut pipes when the "show underwater shortcuts" Remix option is enabled.
-    [*]Fixes an issue that prevents creatures from being replaced when killed.
+    [*]Fixes an (apparent) oversight that makes batflies immune to echo sedation.
+    [*]Fixes an issue that causes creatures living near echoes to enter a bugged state instead of being sedated.
     [*](hopefully) Fixes an issue that makes the game look pixelated in fullscreen mode under certain circumstances.
 [/list]
 Bugs exclusive to v1.9.15b:

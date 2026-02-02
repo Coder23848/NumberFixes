@@ -26,80 +26,133 @@ namespace NumberFixes
 
             On.RainWorld.Update += RainWorld_Update;
 
-            IL.WorldLoader.GeneratePopulation += WorldLoader_GeneratePopulation;
+            //IL.WorldLoader.GeneratePopulation += WorldLoader_GeneratePopulation;
 
             //IL.Lizard.SwimBehavior += Lizard_SwimBehavior;
+
+            On.StaticWorld.InitStaticWorld += StaticWorld_InitStaticWorld;
+            IL.GhostCreatureSedater.Update += GhostCreatureSedater_Update;
+        }
+
+        // creatures being removed improperly when an echo is nearby
+        // This function also skips some creatures arbitrarily, since it modifies the list of creatures in the room while iterating over it. The bugs produced by this should be negligible, however, as it will run out of creatures to remove in (hopefully) just a few game ticks.
+        private void GhostCreatureSedater_Update(ILContext il)
+        {
+            ILCursor cursor = new(il);
+            if (cursor.TryGotoNext(MoveType.After,
+                x => x.MatchLdsfld<AbstractRoomNode.Type>(nameof(AbstractRoomNode.Type.Exit))
+                ) &&
+                cursor.TryGotoNext(MoveType.Before,
+                x => x.MatchLdarg(0),
+                x => x.MatchLdfld<GhostCreatureSedater>(nameof(GhostCreatureSedater.creaturesMovedToDens)),
+                x => x.MatchLdarg(0),
+                x => x.MatchLdfld<UpdatableAndDeletable>(nameof(UpdatableAndDeletable.room)),
+                x => x.MatchCallvirt<Room>("get_abstractRoom"),
+                x => x.MatchLdfld<AbstractRoom>(nameof(AbstractRoom.creatures)),
+                x => x.MatchLdloc(2),
+                x => x.Match(OpCodes.Callvirt), // I have no idea how to match an indexer and I don't think I really need to anyways
+                x => x.MatchCallvirt(typeof(List<AbstractCreature>).GetMethod(nameof(List<AbstractCreature>.Contains)))
+                ))
+            {
+                cursor.MoveAfterLabels();
+                
+                static void Delegate(GhostCreatureSedater self, int j)
+                {
+                    if (self.room.abstractRoom.creatures[j].realizedCreature != null)
+                    {
+                        Debug.Log("[Number Fixes] Destroying realized creature due to echo presence: " + self.room.abstractRoom.creatures[j].realizedCreature);
+                        self.room.abstractRoom.creatures[j].realizedCreature.Destroy();
+                    }
+                }
+
+                cursor.Emit(OpCodes.Ldarg_0);
+                cursor.Emit(OpCodes.Ldloc_2);
+                cursor.EmitDelegate(Delegate);
+            }
+            else
+            {
+                PluginLogger.LogError("Failed to hook " + il.Method.Name + ": no match found.");
+            }
+        }
+
+        // batflies being echo-proof
+        private static void StaticWorld_InitStaticWorld(On.StaticWorld.orig_InitStaticWorld orig)
+        {
+            orig();
+            StaticWorld.creatureTemplates[CreatureTemplate.Type.Fly.index].ghostSedationImmune = false;
+            Debug.Log("[Number Fixes] Made batflies vulnerable to echo sedation.");
         }
 
         // empty region bugfix bug
-        private static List<int> tempRespawnCreatures = null;
-        private static void WorldLoader_GeneratePopulation(ILContext il)
-        {
-            ILCursor startCursor = new(il);
-            bool startCursorValid = startCursor.TryGotoNext(MoveType.Before,
-                x => x.MatchLdcI4(0),
-                x => x.MatchStloc(0));
-            startCursor.MoveAfterLabels();
+        // appears to be fixed as of 1.11.6
+        //private static List<int> tempRespawnCreatures = null;
+        //private static void WorldLoader_GeneratePopulation(ILContext il)
+        //{
+        //    ILCursor startCursor = new(il);
+        //    bool startCursorValid = startCursor.TryGotoNext(MoveType.Before,
+        //        x => x.MatchLdcI4(0),
+        //        x => x.MatchStloc(0));
+        //    startCursor.MoveAfterLabels();
             
-            ILCursor endCursor = startCursor.Clone();
-            bool endCursorValid = endCursor.TryGotoNext(MoveType.Before,
-                x => x.MatchLdloc(2),
-                x => x.MatchLdcI4(0),
-                x => x.MatchCeq(),
-                x => x.MatchLdloc(3),
-                x => x.MatchAnd(),
-                x => x.MatchLdloc(1),
-                x => x.MatchOr());
-            endCursor.MoveAfterLabels();
+        //    ILCursor endCursor = startCursor.Clone();
+        //    bool endCursorValid = endCursor.TryGotoNext(MoveType.Before,
+        //        x => x.MatchLdloc(2),
+        //        x => x.MatchLdcI4(0),
+        //        x => x.MatchCeq(),
+        //        x => x.MatchLdloc(3),
+        //        x => x.MatchAnd(),
+        //        x => x.MatchLdloc(1),
+        //        x => x.MatchOr());
+        //    endCursor.MoveAfterLabels();
 
-            if (!startCursorValid || !endCursorValid)
-            {
-                PluginLogger.LogError("Failed to hook " + il.Method.Name + ": no match found.");
-                return;
-            }
+        //    if (!startCursorValid || !endCursorValid)
+        //    {
+        //        PluginLogger.LogError("Failed to hook " + il.Method.Name + ": no match found.");
+        //        return;
+        //    }
 
-            static void StartDelegate(WorldLoader self)
-            {
-                if (self.game.session is StoryGameSession storyGameSession)
-                {
-                    if (tempRespawnCreatures != null)
-                    {
-                        Debug.Log("[Number Fixes] Respawn temp storage is already in use when it should be initialized. This should never happen!");
-                        return;
-                    }
-                    tempRespawnCreatures = [.. storyGameSession.saveState.respawnCreatures];
-                    //Debug.Log("[Number Fixes] Creatures to respawn: [" + string.Join(", ", storyGameSession.saveState.respawnCreatures) + "]");
-                    Debug.Log("[Number Fixes] Preparing for empty region check...");
-                }
-                else
-                {
-                    Debug.Log("[Number Fixes] Not a story session, no creatures to respawn!");
-                }
-            }
-            static void EndDelegate(WorldLoader self)
-            {
-                if (self.game.session is StoryGameSession storyGameSession)
-                {
-                    if (tempRespawnCreatures == null)
-                    {
-                        Debug.Log("[Number Fixes] Respawn temp storage is uninitialized when it should be consumed. This should never happen!");
-                        return;
-                    }
-                    storyGameSession.saveState.respawnCreatures = [.. tempRespawnCreatures];
-                    tempRespawnCreatures = null;
-                    //Debug.Log("[Number Fixes] Creatures to respawn: [" + string.Join(", ", storyGameSession.saveState.respawnCreatures) + "]");
-                    Debug.Log("[Number Fixes] Successfully preserved creature respawns through empty region check.");
-                }
-                else
-                {
-                    Debug.Log("[Number Fixes] Not a story session, no creatures to respawn!");
-                }
-            }
-            startCursor.Emit(OpCodes.Ldarg_0);
-            startCursor.EmitDelegate(StartDelegate);
-            endCursor.Emit(OpCodes.Ldarg_0);
-            endCursor.EmitDelegate(EndDelegate);
-        }
+        //    static void StartDelegate(WorldLoader self)
+        //    {
+        //        if (self.game.session is StoryGameSession storyGameSession)
+        //        {
+        //            if (tempRespawnCreatures != null)
+        //            {
+        //                Debug.Log("[Number Fixes] Respawn temp storage is already in use when it should be initialized. This should never happen!");
+        //                return;
+        //            }
+        //            tempRespawnCreatures = [.. storyGameSession.saveState.respawnCreatures];
+        //            //Debug.Log("[Number Fixes] Creatures to respawn: [" + string.Join(", ", storyGameSession.saveState.respawnCreatures) + "]");
+        //            Debug.Log("[Number Fixes] Preparing for empty region check...");
+        //        }
+        //        else
+        //        {
+        //            Debug.Log("[Number Fixes] Not a story session, no creatures to respawn!");
+        //        }
+        //    }
+        //    static void EndDelegate(WorldLoader self)
+        //    {
+        //        if (self.game.session is StoryGameSession storyGameSession)
+        //        {
+        //            if (tempRespawnCreatures == null)
+        //            {
+        //                Debug.Log("[Number Fixes] Respawn temp storage is uninitialized when it should be consumed. This should never happen!");
+        //                return;
+        //            }
+        //            storyGameSession.saveState.respawnCreatures = [.. tempRespawnCreatures];
+        //            tempRespawnCreatures = null;
+        //            //Debug.Log("[Number Fixes] Creatures to respawn: [" + string.Join(", ", storyGameSession.saveState.respawnCreatures) + "]");
+        //            Debug.Log("[Number Fixes] Successfully preserved creature respawns through empty region check.");
+        //        }
+        //        else
+        //        {
+        //            Debug.Log("[Number Fixes] Not a story session, no creatures to respawn!");
+        //        }
+        //    }
+        //    startCursor.Emit(OpCodes.Ldarg_0);
+        //    startCursor.EmitDelegate(StartDelegate);
+        //    endCursor.Emit(OpCodes.Ldarg_0);
+        //    endCursor.EmitDelegate(EndDelegate);
+        //}
 
         // TODO: Texture leak in MoreSlugcats.BlizzardGraphics::TileTexUpdate
         // The leak happens for the room you end the cycle in. Would expect it to leak more often from the code; perhaps another mod partially fixes it? Modless testing is in order.
