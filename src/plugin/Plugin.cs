@@ -30,58 +30,60 @@ namespace NumberFixes
 
             //IL.Lizard.SwimBehavior += Lizard_SwimBehavior;
 
-            On.StaticWorld.InitStaticWorld += StaticWorld_InitStaticWorld;
-            IL.GhostCreatureSedater.Update += GhostCreatureSedater_Update;
+            //On.StaticWorld.InitStaticWorld += StaticWorld_InitStaticWorld;
+            //IL.GhostCreatureSedater.Update += GhostCreatureSedater_Update;
         }
 
         // creatures being removed improperly when an echo is nearby
+        // appears to be fixed as of 1.11.7
         // This function also skips some creatures arbitrarily, since it modifies the list of creatures in the room while iterating over it. The bugs produced by this should be negligible, however, as it will run out of creatures to remove in (hopefully) just a few game ticks.
-        private void GhostCreatureSedater_Update(ILContext il)
-        {
-            ILCursor cursor = new(il);
-            if (cursor.TryGotoNext(MoveType.After,
-                x => x.MatchLdsfld<AbstractRoomNode.Type>(nameof(AbstractRoomNode.Type.Exit))
-                ) &&
-                cursor.TryGotoNext(MoveType.Before,
-                x => x.MatchLdarg(0),
-                x => x.MatchLdfld<GhostCreatureSedater>(nameof(GhostCreatureSedater.creaturesMovedToDens)),
-                x => x.MatchLdarg(0),
-                x => x.MatchLdfld<UpdatableAndDeletable>(nameof(UpdatableAndDeletable.room)),
-                x => x.MatchCallvirt<Room>("get_abstractRoom"),
-                x => x.MatchLdfld<AbstractRoom>(nameof(AbstractRoom.creatures)),
-                x => x.MatchLdloc(2),
-                x => x.Match(OpCodes.Callvirt), // I have no idea how to match an indexer and I don't think I really need to anyways
-                x => x.MatchCallvirt(typeof(List<AbstractCreature>).GetMethod(nameof(List<AbstractCreature>.Contains)))
-                ))
-            {
-                cursor.MoveAfterLabels();
+        //private void GhostCreatureSedater_Update(ILContext il)
+        //{
+        //    ILCursor cursor = new(il);
+        //    if (cursor.TryGotoNext(MoveType.After,
+        //        x => x.MatchLdsfld<AbstractRoomNode.Type>(nameof(AbstractRoomNode.Type.Exit))
+        //        ) &&
+        //        cursor.TryGotoNext(MoveType.Before,
+        //        x => x.MatchLdarg(0),
+        //        x => x.MatchLdfld<GhostCreatureSedater>(nameof(GhostCreatureSedater.creaturesMovedToDens)),
+        //        x => x.MatchLdarg(0),
+        //        x => x.MatchLdfld<UpdatableAndDeletable>(nameof(UpdatableAndDeletable.room)),
+        //        x => x.MatchCallvirt<Room>("get_abstractRoom"),
+        //        x => x.MatchLdfld<AbstractRoom>(nameof(AbstractRoom.creatures)),
+        //        x => x.MatchLdloc(out _),
+        //        x => x.Match(OpCodes.Callvirt), // I have no idea how to match an indexer and I don't think I really need to anyways
+        //        x => x.MatchCallvirt(typeof(List<AbstractCreature>).GetMethod(nameof(List<AbstractCreature>.Contains)))
+        //        ))
+        //    {
+        //        cursor.MoveAfterLabels();
                 
-                static void Delegate(GhostCreatureSedater self, int j)
-                {
-                    if (self.room.abstractRoom.creatures[j].realizedCreature != null)
-                    {
-                        Debug.Log("[Number Fixes] Destroying realized creature due to echo presence: " + self.room.abstractRoom.creatures[j].realizedCreature);
-                        self.room.abstractRoom.creatures[j].realizedCreature.Destroy();
-                    }
-                }
+        //        static void Delegate(GhostCreatureSedater self, int j)
+        //        {
+        //            if (self.room.abstractRoom.creatures[j].realizedCreature != null)
+        //            {
+        //                Debug.Log("[Number Fixes] Destroying realized creature due to echo presence: " + self.room.abstractRoom.creatures[j].realizedCreature);
+        //                self.room.abstractRoom.creatures[j].realizedCreature.Destroy();
+        //            }
+        //        }
 
-                cursor.Emit(OpCodes.Ldarg_0);
-                cursor.Emit(OpCodes.Ldloc_2);
-                cursor.EmitDelegate(Delegate);
-            }
-            else
-            {
-                PluginLogger.LogError("Failed to hook " + il.Method.Name + ": no match found.");
-            }
-        }
+        //        cursor.Emit(OpCodes.Ldarg_0);
+        //        cursor.Emit(OpCodes.Ldloc_2);
+        //        cursor.EmitDelegate(Delegate);
+        //    }
+        //    else
+        //    {
+        //        PluginLogger.LogError("Failed to hook " + il.Method.Name + ": no match found.");
+        //    }
+        //}
 
         // batflies being echo-proof
-        private static void StaticWorld_InitStaticWorld(On.StaticWorld.orig_InitStaticWorld orig)
-        {
-            orig();
-            StaticWorld.creatureTemplates[CreatureTemplate.Type.Fly.index].ghostSedationImmune = false;
-            Debug.Log("[Number Fixes] Made batflies vulnerable to echo sedation.");
-        }
+        // appears to be fixed as of 1.11.7
+        //private static void StaticWorld_InitStaticWorld(On.StaticWorld.orig_InitStaticWorld orig)
+        //{
+        //    orig();
+        //    StaticWorld.creatureTemplates[CreatureTemplate.Type.Fly.index].ghostSedationImmune = false;
+        //    Debug.Log("[Number Fixes] Made batflies vulnerable to echo sedation.");
+        //}
 
         // empty region bugfix bug
         // appears to be fixed as of 1.11.6
